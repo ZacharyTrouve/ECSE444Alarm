@@ -1,0 +1,4 @@
+../BlueNRG_MS/App/app_bluenrg_ms.c:74:6:Ext_User_Init	2
+../BlueNRG_MS/App/app_bluenrg_ms.c:131:6:MX_BlueNRG_MS_Init	12
+../BlueNRG_MS/App/app_bluenrg_ms.c:252:6:MX_BlueNRG_MS_Process	1
+../BlueNRG_MS/App/app_bluenrg_ms.c:272:13:User_Init	1
