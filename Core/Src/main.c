@@ -31,6 +31,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "app_bluenrg_ms.h"
 #include "stm32l4s5i_iot01_accelero.h"
 #include "stm32l4s5i_iot01_qspi.h"
 #include "stm32l4s5i_iot01.h"
@@ -41,6 +42,7 @@
 #include "semphr.h"
 #include <stdbool.h>
 #include <stdio.h>
+#include "b_l4s5i_iot01a.h"
 #include <string.h>
 /* USER CODE END Includes */
 
@@ -115,12 +117,12 @@ int main(void)
   MX_OCTOSPI1_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
+  MX_BlueNRG_MS_Init();
 
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in cmsis_os2.c) */
   MX_FREERTOS_Init();
-
   /* Start scheduler */
   osKernelStart();
 
@@ -189,7 +191,115 @@ void SystemClock_Config(void)
 }
 
 /* USER CODE BEGIN 4 */
+/* USER CODE BEGIN Header_StartSensorWriterTracker */
+int16_t flash_buffer_r[2048];
+int16_t flash_running = 0;
+uint32_t samples_taken = 0;
+char message[384];
 
+volatile int blockindex = 4096;
+volatile int block = -1;
+
+float means[8];
+/**
+  * @brief  Function implementing the SensorWriterTsk thread.
+  * @param  argument: Not used
+  * @retval None
+  */
+/* USER CODE END Header_StartSensorWriterTracker */
+void StartSensorWriterTracker(void const * argument)
+{
+  /* USER CODE BEGIN 5 */
+//	MX_BlueNRG_MS_Process();
+//	sprintf(message, "Setup complete!?\r\n");
+//		 length1 = strlen(message);
+//		    HAL_UART_Transmit(&huart1, (uint8_t *) message, length1, 100);
+  /* Infinite loop */
+	Ext_User_Init();
+  for(;;)
+  {
+	  osDelay(125);
+//		sprintf(message, "Calling MX_BlueNRG_MS_Process\r\n");
+//		uint16_t length1 = strlen(message);
+//		    HAL_UART_Transmit(&huart1, (uint8_t *) message, length1, 100);
+    MX_BlueNRG_MS_Process();
+    continue;
+//    HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+//    if (currentState == HUMIDITY) sprintf(message, "The humidity is %0.2f.\r\n", humidity);
+//    else if (currentState == PRESSURE) sprintf(message, "The pressure is %0.2f.\r\n", pressure);
+//    else if (currentState == ACCELERO) sprintf(message, "The acceleration in the x direction is %d, in the y direction is %d, in the z direction is %d.\r\n", accelero[0], accelero[1], accelero[2]);
+//    else if (currentState == MAGNETO) sprintf(message, "The magnetic field in the x direction is %d, in the y direction is %d, in the z direction is %d.\r\n", magneto[0], magneto[1], magneto[2]);
+//    else if (currentState == SUMMARY)  {
+//    	double variances[8];
+//    	for (int i = 0; i < 8; i++) variances[i] = 0;
+//    	flash_running = 1;
+//    	for (int i = 0; i <= block; i++) {
+//    		//if (BSP_QSPI_Read((uint8_t *) flash_buffer_r, 0, 4096) != QSPI_OK) Error_Handler();
+//    		int end_index = 2048;
+//    		if (i == block) end_index = blockindex/2;
+//    		for (int j = 0; j < end_index; j ++) {
+//    			double diff = ((double)flash_buffer_r[j] - means[j % 8]);
+//    			variances[j % 8] += diff * diff / samples_taken;
+//    		}
+//    	}
+//    	flash_running = 0;
+//    	blockindex = 4096;
+//    	block = -1; //trigger reset on next read.
+//    	sprintf(message, "Summary (%d samples):\r\n\tHumidity was avg=%4.2f, var=%4.2f.\r\n\tPressure was avg=%4.2f, var=%4.2f.\r\n\tAcceleration was \r\n\t\tx: avg=%4.2f, var=%4.2f\r\n\t\ty: avg=%4.2f, var=%4.2f\r\n\t\tz: avg=%4.2f, var=%4.2f\r\n\tMagnetic Field was \r\n\t\tx: avg=%4.2f, var=%4.2f\r\n\t\ty: avg=%4.2f, var=%.2f\r\n\t\tz: avg=%4.2f, var=%.2f\r\n\r\n",
+//    			(int)samples_taken, means[0], variances[0], means[1], variances[1], means[2], variances[2], means[3], variances[3], means[4], variances[4], means[5], variances[5], means[6], variances[6], means[7], variances[7]);
+//
+//    	samples_taken = 0;
+//    	for (int i = 0; i < 8; i++) means[i] = 0;
+//    	currentState = HUMIDITY;
+//
+//    }
+//    uint16_t length = strlen(message);
+//    HAL_UART_Transmit(&huart1, (uint8_t *) message, length, 100);
+    //    osDelay(500);
+//    if (blockindex >= 4096) {
+//    	blockindex = 0;
+//    	block++;
+//    	flash_running = 1;
+//    	BSP_QSPI_Erase_Block(block); //prepare it
+//    	flash_running = 0;
+//    }
+//    BSP_QSPI_Write((uint8_t *)flash_buffer_w, blockindex + block * 4096, 16);
+
+  }
+  /* USER CODE END 5 */
+}
+
+/* USER CODE BEGIN Header_StartLEDblinker */
+int odd = 0;
+void toggleLed () {
+	blink_red = !blink_red;
+}
+/**
+* @brief Function implementing the ledBlinker thread.
+* @param argument: Not used
+* @retval None
+*/
+/* USER CODE END Header_StartLEDblinker */
+void StartLEDblinker(void const * argument)
+{
+  /* USER CODE BEGIN StartLEDblinker */
+  /* Infinite loop */
+  for(;;)
+  {
+    osDelay(175);
+    odd = !odd;
+    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, odd);
+    if (blink_red) HAL_GPIO_WritePin(LEDred_GPIO_Port, LEDred_Pin, odd);
+
+//    char msg[100];
+//    sprintf(msg, "TEST TES TEST\r\n");
+//    uint16_t length = strlen(msg);
+//        HAL_UART_Transmit(&huart1, (uint8_t *) msg, length, 100);
+//    if (flash_running) HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
+//    else HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, GPIO_PIN_RESET);
+  }
+  /* USER CODE END StartLEDblinker */
+}
 /* USER CODE END 4 */
 
 /**

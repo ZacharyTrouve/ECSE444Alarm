@@ -33,3 +33,7 @@ build/
 # Logs and temporary files
 *.log
 *.tmp
+
+# macOS system files
+.DS_Store
+Core/.DS_Store

@@ -1,0 +1,8 @@
+../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.c:81:9:BSP_GetVersion	1
+../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.c:95:9:BSP_COM_Init	3
+../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.c:133:9:BSP_COM_DeInit	3
+../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.c:170:26:MX_USART1_UART_Init	5
+../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.c:290:9:BSP_COM_SelectLogPort	2
+../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.c:336:5:__io_putchar	1
+../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.c:349:13:USART1_MspInit	1
+../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.c:390:13:USART1_MspDeInit	1

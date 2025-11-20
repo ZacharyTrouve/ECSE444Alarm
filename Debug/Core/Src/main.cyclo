@@ -1,0 +1,11 @@
+../Core/Src/main.c:103:6:HAL_GPIO_EXTI_Callback	2
+../Core/Src/main.c:141:5:main	1
+../Core/Src/main.c:226:6:SystemClock_Config	4
+../Core/Src/main.c:277:13:MX_I2C2_Init	4
+../Core/Src/main.c:325:13:MX_OCTOSPI1_Init	2
+../Core/Src/main.c:364:13:MX_GPIO_Init	1
+../Core/Src/main.c:472:6:StartSensorWriterTracker	1
+../Core/Src/main.c:536:6:toggleLed	1
+../Core/Src/main.c:545:6:StartLEDblinker	2
+../Core/Src/main.c:574:6:HAL_TIM_PeriodElapsedCallback	2
+../Core/Src/main.c:592:6:Error_Handler	1
