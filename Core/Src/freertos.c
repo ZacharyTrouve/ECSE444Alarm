@@ -50,7 +50,7 @@ typedef struct
 #define AUDIO_BUFFER_FULL_FLAG              (1UL << 1)
 #define AUDIO_SAMPLE_SHIFT                  8U
 #define AUDIO_DYNAMIC_MARGIN                200U
-#define AUDIO_ABSOLUTE_THRESHOLD            900U
+#define AUDIO_ABSOLUTE_THRESHOLD            1000U
 #define AUDIO_NOISE_ALPHA_SHIFT             4U
 #define AUDIO_RELATIVE_FACTOR_NUM           5U
 #define AUDIO_RELATIVE_FACTOR_DEN           4U  /* 1.25x */
@@ -172,11 +172,11 @@ void MX_FREERTOS_Init(void) {
   audioProcessingHandle = osThreadCreate(osThread(audioProcessing), NULL);
 
   /* definition and creation of alarmTask */
-  osThreadDef(alarmTask, AlarmTask, osPriorityAboveNormal, 0, 384);
+  osThreadDef(alarmTask, AlarmTask, osPriorityNormal, 0, 384);
   alarmTaskHandle = osThreadCreate(osThread(alarmTask), NULL);
 
   /* definition and creation of motionTask */
-  osThreadDef(motionTask, MotionTask, osPriorityBelowNormal, 0, 256);
+  osThreadDef(motionTask, MotionTask, osPriorityNormal, 0, 256);
   motionTaskHandle = osThreadCreate(osThread(motionTask), NULL);
 
   /* USER CODE BEGIN RTOS_THREADS */
@@ -314,7 +314,7 @@ void MotionTask(void const * argument)
     uint32_t magnitude = (uint32_t)(diffX * diffX + diffY * diffY + diffZ * diffZ);
     if (magnitude > MOTION_THRESHOLD)
     {
-      DebugPrint("Motion alarm: %lu\r\n", magnitude);
+      DebugPrint("!!!!!!!!!!!Motion alarm: %lu!!!!!!!!!!\r\n", magnitude);
       DispatchAlarmEvent(ALARM_EVENT_MOTION, magnitude);
     }
 
@@ -341,7 +341,7 @@ static void DispatchAlarmEvent(AlarmEventSource_t source, uint32_t magnitude)
 
   if (xQueueSend(alarmEventQueue, &evt, pdMS_TO_TICKS(50)) != pdPASS)
   {
-    DebugPrint("Alarm queue full (src=%u mag=%lu)\r\n", source, magnitude);
+//    DebugPrint("Alarm queue full (src=%u mag=%lu)\r\n", source, magnitude);
   }
 }
 
