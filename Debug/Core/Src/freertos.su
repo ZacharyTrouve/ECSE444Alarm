@@ -1,0 +1,14 @@
+../Core/Src/freertos.c:105:6:vApplicationStackOverflowHook	16	static
+../Core/Src/freertos.c:120:6:vApplicationGetIdleTaskMemory	24	static
+../Core/Src/freertos.c:133:6:MX_FREERTOS_Init	88	static,ignoring_inline_asm
+../Core/Src/freertos.c:184:6:AudioProcessingTask	24	static
+../Core/Src/freertos.c:231:6:AlarmTask	40	static
+../Core/Src/freertos.c:279:13:DispatchAlarmEvent	24	static
+../Core/Src/freertos.c:298:13:AnalyzeAudioFrame	80	static
+../Core/Src/freertos.c:331:13:InitAlarmWaveform	24	static
+../Core/Src/freertos.c:344:17:CalculateFrameEnergy	56	static
+../Core/Src/freertos.c:358:26:StartAlarmOutput	24	static
+../Core/Src/freertos.c:382:13:StopAlarmOutput	8	static
+../Core/Src/freertos.c:390:13:DebugPrint	144	static
+../Core/Src/freertos.c:416:6:HAL_DFSDM_FilterRegConvHalfCpltCallback	24	static,ignoring_inline_asm
+../Core/Src/freertos.c:443:6:HAL_DFSDM_FilterRegConvCpltCallback	24	static,ignoring_inline_asm
