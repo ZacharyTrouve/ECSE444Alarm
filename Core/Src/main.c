@@ -31,15 +31,14 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#define ARM_MATH_CM4
 #include "app_bluenrg_ms.h"
-#include "stm32l4s5i_iot01_accelero.h"
-#include "stm32l4s5i_iot01_qspi.h"
-#include "stm32l4s5i_iot01.h"
 #include "stm32l4xx_hal_conf.h"
 #include "stm32l4xx_it.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "semphr.h"
+#include "arm_math.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include "b_l4s5i_iot01a.h"
@@ -64,6 +63,8 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+#define BL_BUFFER_SIZE  (128*8)
+int32_t s_baselineBuffer[BL_BUFFER_SIZE];
 
 /* USER CODE END PV */
 
@@ -76,6 +77,18 @@ void MX_FREERTOS_Init(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+int blink_red = 0;
+volatile int8_t button_pushed = 0;
+volatile int8_t done_calibration = 0;
+
+void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin)
+{
+  if (GPIO_Pin == PUSH_BUTTON_Pin)
+  {
+    button_pushed = 1;
+    blink_red = !blink_red;
+  }
+}
 
 /* USER CODE END 0 */
 
@@ -117,8 +130,15 @@ int main(void)
   MX_OCTOSPI1_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-  MX_BlueNRG_MS_Init();
+//  MX_BlueNRG_MS_Init();
 
+//  calibrate env sound
+  if (HAL_DFSDM_FilterRegularStart_DMA(&hdfsdm1_filter0,
+		  	  	  	  	  	  	  	   s_baselineBuffer,
+									   BL_BUFFER_SIZE) != HAL_OK)
+  {
+	  Error_Handler();
+  }
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in cmsis_os2.c) */
@@ -288,8 +308,8 @@ void StartLEDblinker(void const * argument)
   {
     osDelay(175);
     odd = !odd;
-    HAL_GPIO_WritePin(LED_GPIO_Port, LED_Pin, odd);
-    if (blink_red) HAL_GPIO_WritePin(LEDred_GPIO_Port, LEDred_Pin, odd);
+    HAL_GPIO_WritePin(green_LED_GPIO_Port, green_LED_Pin, odd);
+    if (blink_red) HAL_GPIO_WritePin(Error_LED_GPIO_Port, Error_LED_Pin, odd);
 
 //    char msg[100];
 //    sprintf(msg, "TEST TES TEST\r\n");

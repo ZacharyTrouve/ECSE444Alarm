@@ -26,7 +26,11 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_gpio_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma_ex.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dfsdm.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dfsdm_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_cortex.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_exti.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ex.h \
@@ -36,6 +40,8 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_ospi.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr_ex.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rtc.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rtc_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim.h \
@@ -46,7 +52,23 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a_bus.h \
  ../Core/Inc/b_l4s5i_iot01a_conf.h \
  ../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a_errno.h \
- ../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.h
+ ../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/task.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h \
+ ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h \
+ ../Core/Inc/dac.h ../Core/Inc/main.h ../Core/Inc/dfsdm.h \
+ ../Core/Inc/dma.h ../Core/Inc/i2c.h ../Core/Inc/octospi.h \
+ ../Core/Inc/rtc.h ../Core/Inc/tim.h ../Core/Inc/usart.h \
+ ../Core/Inc/gpio.h ../Core/Inc/stm32l4s5i_iot01_accelero.h \
+ /Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/lsm6dsl.h \
+ /Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/../Common/accelero.h \
+ /Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/../Common/gyro.h \
+ ../Core/Inc/arm_math.h ../Drivers/CMSIS/Include/cmsis_compiler.h
 ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h:
 ../Core/Inc/FreeRTOSConfig.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h:
@@ -75,7 +97,11 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_gpio_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma_ex.h:
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dfsdm.h:
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dfsdm_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_cortex.h:
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac.h:
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_exti.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ex.h:
@@ -85,6 +111,8 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_ospi.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_pwr_ex.h:
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rtc.h:
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_rtc_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_spi_ex.h:
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_tim.h:
@@ -96,3 +124,27 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../Core/Inc/b_l4s5i_iot01a_conf.h:
 ../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a_errno.h:
 ../Drivers/BSP/B-L4S5I-IOT01A/b_l4s5i_iot01a.h:
+../Middlewares/Third_Party/FreeRTOS/Source/CMSIS_RTOS/cmsis_os.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/task.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/semphr.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h:
+../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h:
+../Core/Inc/dac.h:
+../Core/Inc/main.h:
+../Core/Inc/dfsdm.h:
+../Core/Inc/dma.h:
+../Core/Inc/i2c.h:
+../Core/Inc/octospi.h:
+../Core/Inc/rtc.h:
+../Core/Inc/tim.h:
+../Core/Inc/usart.h:
+../Core/Inc/gpio.h:
+../Core/Inc/stm32l4s5i_iot01_accelero.h:
+/Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/lsm6dsl.h:
+/Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/../Common/accelero.h:
+/Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/../Common/gyro.h:
+../Core/Inc/arm_math.h:
+../Drivers/CMSIS/Include/cmsis_compiler.h:

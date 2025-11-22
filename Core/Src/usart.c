@@ -25,6 +25,7 @@
 /* USER CODE END 0 */
 
 UART_HandleTypeDef huart1;
+extern UART_HandleTypeDef hcom_uart[];
 
 /* USART1 init function */
 

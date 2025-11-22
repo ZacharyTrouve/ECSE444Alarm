@@ -1,1 +1,15 @@
-../Core/Src/freertos.c:62:6:vApplicationGetIdleTaskMemory	1
+../Core/Src/freertos.c:126:6:vApplicationStackOverflowHook	1
+../Core/Src/freertos.c:144:6:vApplicationGetIdleTaskMemory	1
+../Core/Src/freertos.c:157:6:MX_FREERTOS_Init	2
+../Core/Src/freertos.c:212:6:AudioProcessingTask	5
+../Core/Src/freertos.c:263:6:AlarmTask	6
+../Core/Src/freertos.c:307:6:MotionTask	3
+../Core/Src/freertos.c:348:13:DispatchAlarmEvent	2
+../Core/Src/freertos.c:367:13:AnalyzeAudioFrame	3
+../Core/Src/freertos.c:384:13:InitAlarmWaveform	4
+../Core/Src/freertos.c:399:18:CalculateFrameEnergy	1
+../Core/Src/freertos.c:406:26:StartAlarmOutput	3
+../Core/Src/freertos.c:430:13:StopAlarmOutput	1
+../Core/Src/freertos.c:438:13:DebugPrint	4
+../Core/Src/freertos.c:464:6:HAL_DFSDM_FilterRegConvHalfCpltCallback	7
+../Core/Src/freertos.c:495:6:HAL_DFSDM_FilterRegConvCpltCallback	8

@@ -25,7 +25,7 @@
 #endif
 
 /* Includes ------------------------------------------------------------------*/
-#include "stm32l4s5i_iot01.h"
+#include "b_l4s5i_iot01a.h"
 /* Include Accelero component driver */
 #include "../Components/lsm6dsl/lsm6dsl.h"
    
@@ -84,5 +84,4 @@ void BSP_ACCELERO_AccGetXYZ(int16_t *pDataXYZ);
 #endif
 
 #endif /* __STM32L4S5I_IOT01_ACCELERO_H */
-
 

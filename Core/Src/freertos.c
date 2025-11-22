@@ -21,64 +21,6 @@
 #include "FreeRTOS.h"
 #include "task.h"
 #include "main.h"
-
-/* Private includes ----------------------------------------------------------*/
-/* USER CODE BEGIN Includes */
-
-/* USER CODE END Includes */
-
-/* Private typedef -----------------------------------------------------------*/
-/* USER CODE BEGIN PTD */
-
-/* USER CODE END PTD */
-
-/* Private define ------------------------------------------------------------*/
-/* USER CODE BEGIN PD */
-
-/* USER CODE END PD */
-
-/* Private macro -------------------------------------------------------------*/
-/* USER CODE BEGIN PM */
-
-/* USER CODE END PM */
-
-/* Private variables ---------------------------------------------------------*/
-/* USER CODE BEGIN Variables */
-
-/* USER CODE END Variables */
-
-/* Private function prototypes -----------------------------------------------*/
-/* USER CODE BEGIN FunctionPrototypes */
-
-/* USER CODE END FunctionPrototypes */
-
-/* GetIdleTaskMemory prototype (linked to static allocation support) */
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize );
-
-/* USER CODE BEGIN GET_IDLE_TASK_MEMORY */
-static StaticTask_t xIdleTaskTCBBuffer;
-static StackType_t xIdleStack[configMINIMAL_STACK_SIZE];
-
-void vApplicationGetIdleTaskMemory( StaticTask_t **ppxIdleTaskTCBBuffer, StackType_t **ppxIdleTaskStackBuffer, uint32_t *pulIdleTaskStackSize )
-{
-  *ppxIdleTaskTCBBuffer = &xIdleTaskTCBBuffer;
-  *ppxIdleTaskStackBuffer = &xIdleStack[0];
-  *pulIdleTaskStackSize = configMINIMAL_STACK_SIZE;
-  /* place for user code */
-}
-/* USER CODE END GET_IDLE_TASK_MEMORY */
-
-/* Private application code --------------------------------------------------*/
-/* USER CODE BEGIN Application */
-
-/* USER CODE END Application */
-
-/* USER CODE BEGIN Header */
-/* USER CODE END Header */
-/* Includes ------------------------------------------------------------------*/
-#include "FreeRTOS.h"
-#include "task.h"
-#include "main.h"
 #include "cmsis_os.h"
 
 /* Private includes ----------------------------------------------------------*/
@@ -124,21 +66,19 @@ typedef struct
 #define AUDIO_BUFFER_HALF_FLAG              (1UL << 0)
 #define AUDIO_BUFFER_FULL_FLAG              (1UL << 1)
 #define AUDIO_SAMPLE_SHIFT                  8U
-#define AUDIO_DYNAMIC_MARGIN                200U
-#define AUDIO_ABSOLUTE_THRESHOLD            1000U
+#define AUDIO_ABSOLUTE_THRESHOLD            1800U
 #define AUDIO_NOISE_ALPHA_SHIFT             4U
-#define AUDIO_RELATIVE_FACTOR_NUM           5U
-#define AUDIO_RELATIVE_FACTOR_DEN           4U  /* 1.25x */
-#define AUDIO_NOISE_MIN                     100U
-#define AUDIO_NOISE_MAX                     12000U
+#define AUDIO_RELATIVE_FACTOR_NUM           3U
+#define AUDIO_RELATIVE_FACTOR_DEN           2U  /* 1.5x */
+#define AUDIO_NOISE_MIN                     200U
+#define AUDIO_NOISE_MAX                     20000U
+#define AUDIO_RETRIGGER_MS                  500U
 #define AUDIO_SENSOR_STABILIZATION_MS       500U
 #define AUDIO_ACTIVE_HOLD_MS                2500U
-#define ALARM_ACTIVE_HOLD_MS                5000U
-#define ALARM_EVENT_QUEUE_LENGTH            4U
-#define ALARM_DECAY_POLL_MS                 100U
-#define ALARM_SUSTAIN_AFTER_EVENT_MS        8000U
 
-#define ALARM_WAVEFORM_SAMPLES             10U
+#define ALARM_EVENT_QUEUE_LENGTH            4U
+
+#define ALARM_WAVEFORM_SAMPLES             32U
 #define DAC_MAX                            4095U // 12-bit DAC
 #define DAC_CENTER                         (DAC_MAX / 2U)
 #define AMP                                (DAC_MAX / 2U) // Amplitude of the alarm waveform
@@ -166,7 +106,9 @@ static int32_t s_audioDmaBuffer[AUDIO_DMA_BUFFER_SIZE];
 static uint16_t s_alarmWaveform[ALARM_WAVEFORM_SAMPLES];
 static int16_t s_lastAccel[3] = {0};
 
-static uint32_t s_audioNoiseEstimate = 400U;
+static uint32_t s_audioNoiseEstimate = 300U;
+static TickType_t s_lastAudioAlarmTick = 0;
+static volatile float32_t ref_rms = 0.1f;
 /* USER CODE END Variables */
 osThreadId audioProcessingHandle;
 osThreadId alarmTaskHandle;
@@ -176,7 +118,7 @@ osThreadId motionTaskHandle;
 /* USER CODE BEGIN FunctionPrototypes */
 static void DispatchAlarmEvent(AlarmEventSource_t source, uint32_t magnitude);
 static void AnalyzeAudioFrame(const int32_t *frame, size_t length);
-static uint32_t CalculateFrameEnergy(const int32_t *frame, size_t length);
+static float32_t CalculateFrameEnergy(const int32_t *frame, size_t length);
 static void InitAlarmWaveform(void);
 static HAL_StatusTypeDef StartAlarmOutput(void);
 static void StopAlarmOutput(void);
@@ -272,7 +214,11 @@ void AudioProcessingTask(void const * argument)
   /* USER CODE BEGIN AudioProcessingTask */
   DebugPrint("AudioProcessingTask begins\r\n");
   (void)(argument);
-
+  while (done_calibration == 0)
+  {
+    DebugPrint("Waiting for calibration to complete...\r\n");
+    osDelay(50);
+  }
   audioProcessingTaskNativeHandle = xTaskGetCurrentTaskHandle();
   memset(s_audioDmaBuffer, 0, sizeof(s_audioDmaBuffer));
 
@@ -320,16 +266,24 @@ void AlarmTask(void const * argument)
   (void)(argument);
 
   AlarmEvent_t evt;
-  TickType_t sustainUntil = 0;
   bool alarmRunning = false;
   DebugPrint("=========AlarmTask started========\r\n");
 
   for (;;)
   {
-	 osDelay(100);
-    if (xQueueReceive(alarmEventQueue, &evt, portMAX_DELAY) == pdPASS)
+	DebugPrint("button_pushed:%u\r\n",button_pushed);
+    if (button_pushed)
     {
-      sustainUntil = xTaskGetTickCount() + pdMS_TO_TICKS(ALARM_SUSTAIN_AFTER_EVENT_MS);
+      button_pushed = 0;
+      if (alarmRunning)
+      {
+        StopAlarmOutput();
+        alarmRunning = false;
+        DebugPrint("Alarm stopped by button\r\n");
+      }
+    }
+    else if (xQueueReceive(alarmEventQueue, &evt, portMAX_DELAY) == pdPASS)
+    {
       DebugPrint("AlarmTask received evt src=%u mag=%lu\r\n", evt.source, evt.magnitude);
 
       if (!alarmRunning)
@@ -346,23 +300,13 @@ void AlarmTask(void const * argument)
         }
       }
     }
-    else if (alarmRunning)
-    {
-      TickType_t now = xTaskGetTickCount();
-      if ((int32_t)(now - sustainUntil) >= 0)
-      {
-        StopAlarmOutput();
-        alarmRunning = false;
-        DebugPrint("Alarm stopped\r\n");
-      }
-    }
   }
   /* USER CODE END AlarmTask */
 }
 
 void MotionTask(void const * argument)
 {
-  UNUSED(argument);
+  (void)(argument);
   DebugPrint("MotionTask started\r\n");
 
   if (BSP_ACCELERO_Init() != ACCELERO_OK)
@@ -422,34 +366,18 @@ static void DispatchAlarmEvent(AlarmEventSource_t source, uint32_t magnitude)
 
 static void AnalyzeAudioFrame(const int32_t *frame, size_t length)
 {
-  uint32_t frameEnergy = CalculateFrameEnergy(frame, length);
-  uint32_t noise = s_audioNoiseEstimate;
-  uint32_t adaptiveMargin = AUDIO_DYNAMIC_MARGIN + (noise >> 2);
-  uint32_t relativeThreshold = noise + adaptiveMargin;
-  uint32_t ratioThreshold = (noise * AUDIO_RELATIVE_FACTOR_NUM) / AUDIO_RELATIVE_FACTOR_DEN;
-
-  bool exceedsAbsolute = (frameEnergy > AUDIO_ABSOLUTE_THRESHOLD);
-  bool exceedsRelative = (frameEnergy > relativeThreshold);
-  bool exceedsRatio = (frameEnergy > ratioThreshold);
-
-  if ((exceedsAbsolute && exceedsRelative) || exceedsRatio)
+  float32_t frameEnergy = CalculateFrameEnergy(frame, length);
+  DebugPrint("frameEnergy: %0.15f dB\r\n", frameEnergy);
+  float32_t threshold = ref_rms + s_audioNoiseEstimate;
+  DebugPrint("threshold: %0.15f dB\r\n", threshold);
+  if (frameEnergy > threshold)
   {
-	  DebugPrint("Dispatch alarm\r\n");
-    DispatchAlarmEvent(ALARM_EVENT_AUDIO, frameEnergy);
-  }
-  else
-  {
-    uint64_t average = ((uint64_t)noise * ((1UL << AUDIO_NOISE_ALPHA_SHIFT) - 1U)) + frameEnergy;
-    noise = (uint32_t)(average >> AUDIO_NOISE_ALPHA_SHIFT);
-    if (noise < AUDIO_NOISE_MIN)
+    TickType_t now = xTaskGetTickCount();
+    if ((int32_t)(now - s_lastAudioAlarmTick) >= (int32_t)pdMS_TO_TICKS(AUDIO_RETRIGGER_MS))
     {
-      noise = AUDIO_NOISE_MIN;
+      s_lastAudioAlarmTick = now;
+      DispatchAlarmEvent(ALARM_EVENT_AUDIO, (uint32_t)frameEnergy);
     }
-    else if (noise > AUDIO_NOISE_MAX)
-    {
-      noise = AUDIO_NOISE_MAX;
-    }
-    s_audioNoiseEstimate = noise;
   }
 }
 
@@ -458,26 +386,21 @@ static void InitAlarmWaveform(void)
   for (uint32_t i = 0; i < ALARM_WAVEFORM_SAMPLES; ++i)
   {
     float angle = (2.0f * (float)PI * (float)i) / (float)ALARM_WAVEFORM_SAMPLES;
-    float s = arm_sin_f32(angle);
+    float s = sinf(angle);
     int32_t y = (int32_t)DAC_CENTER + (int32_t)((float)AMP * s);
     if (y < 0) y = 0;
     if (y > (int32_t)DAC_MAX) y = DAC_MAX;
     s_alarmWaveform[i] = (uint16_t)y;
+    DebugPrint("Waveform[%lu] = %u\r\n", i, s_alarmWaveform[i]);
   }
 }
 
-static uint32_t CalculateFrameEnergy(const int32_t *frame, size_t length)
+
+static float32_t CalculateFrameEnergy(const int32_t *frame, size_t length)
 {
-  uint64_t accumulator = 0;
-
-  for (size_t i = 0; i < length; ++i)
-  {
-    int32_t sample = (int32_t)(frame[i] >> AUDIO_SAMPLE_SHIFT);
-    accumulator += (uint32_t)labs(sample);
-  }
-
-  accumulator /= (length == 0U) ? 1U : length;
-  return (uint32_t)accumulator;
+  float32_t rms;
+  arm_rms_f32(frame, length, &rms);
+  return rms;
 }
 
 static HAL_StatusTypeDef StartAlarmOutput(void)
@@ -540,6 +463,10 @@ static void DebugPrint(const char *format, ...)
 
 void HAL_DFSDM_FilterRegConvHalfCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filter)
 {
+  if (! done_calibration)
+  {
+    return;
+  }
   if (hdfsdm_filter != &hdfsdm1_filter0)
   {
     return;
@@ -572,6 +499,20 @@ void HAL_DFSDM_FilterRegConvCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filt
     return;
   }
   
+  if (! done_calibration)
+  {
+    done_calibration = 1;
+    float32_t ref_rms_local;
+    arm_rms_f32(&s_baselineBuffer[0], BL_BUFFER_SIZE, &ref_rms_local);
+    ref_rms = ref_rms_local;
+    if (HAL_DFSDM_FilterRegularStop_DMA(&hdfsdm1_filter0) != HAL_OK)
+    {
+      Error_Handler();
+    }
+    DebugPrint("Audio sensor calibration done\r\n");
+    return;
+  }
+
   BaseType_t higherPriorityTaskWoken = pdFALSE;
   s_audioReadyMask |= AUDIO_BUFFER_FULL_FLAG;
   
