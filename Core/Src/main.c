@@ -63,8 +63,6 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-#define BL_BUFFER_SIZE  (128*8)
-int32_t s_baselineBuffer[BL_BUFFER_SIZE];
 
 /* USER CODE END PV */
 
@@ -79,7 +77,6 @@ void MX_FREERTOS_Init(void);
 /* USER CODE BEGIN 0 */
 int blink_red = 0;
 volatile int8_t button_pushed = 0;
-volatile int8_t done_calibration = 0;
 
 void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin)
 {
@@ -132,13 +129,6 @@ int main(void)
   /* USER CODE BEGIN 2 */
 //  MX_BlueNRG_MS_Init();
 
-//  calibrate env sound
-  if (HAL_DFSDM_FilterRegularStart_DMA(&hdfsdm1_filter0,
-		  	  	  	  	  	  	  	   s_baselineBuffer,
-									   BL_BUFFER_SIZE) != HAL_OK)
-  {
-	  Error_Handler();
-  }
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in cmsis_os2.c) */

@@ -68,11 +68,8 @@ void Error_Handler(void);
 #define PUSH_BUTTON_EXTI_IRQn EXTI15_10_IRQn
 
 /* USER CODE BEGIN Private defines */
-#define BL_BUFFER_SIZE  128*8
 extern volatile int8_t button_pushed;
 extern int blink_red;
-extern volatile int8_t done_calibration;
-extern int32_t s_baselineBuffer[BL_BUFFER_SIZE];
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

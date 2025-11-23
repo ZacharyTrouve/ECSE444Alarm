@@ -42,6 +42,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -73,6 +74,7 @@ typedef struct
 #define AUDIO_NOISE_MIN                     200U
 #define AUDIO_NOISE_MAX                     20000U
 #define AUDIO_RETRIGGER_MS                  500U
+#define AUDIO_DYNAMIC_MARGIN                400U
 #define AUDIO_SENSOR_STABILIZATION_MS       500U
 #define AUDIO_ACTIVE_HOLD_MS                2500U
 
@@ -106,7 +108,7 @@ static int32_t s_audioDmaBuffer[AUDIO_DMA_BUFFER_SIZE];
 static uint16_t s_alarmWaveform[ALARM_WAVEFORM_SAMPLES];
 static int16_t s_lastAccel[3] = {0};
 
-static uint32_t s_audioNoiseEstimate = 300U;
+static uint32_t s_audioNoiseEstimate = 3000000U;
 static TickType_t s_lastAudioAlarmTick = 0;
 static volatile float32_t ref_rms = 0.1f;
 /* USER CODE END Variables */
@@ -214,11 +216,6 @@ void AudioProcessingTask(void const * argument)
   /* USER CODE BEGIN AudioProcessingTask */
   DebugPrint("AudioProcessingTask begins\r\n");
   (void)(argument);
-  while (done_calibration == 0)
-  {
-    DebugPrint("Waiting for calibration to complete...\r\n");
-    osDelay(50);
-  }
   audioProcessingTaskNativeHandle = xTaskGetCurrentTaskHandle();
   memset(s_audioDmaBuffer, 0, sizeof(s_audioDmaBuffer));
 
@@ -243,11 +240,15 @@ void AudioProcessingTask(void const * argument)
 
     if ((readyMask & AUDIO_BUFFER_HALF_FLAG) != 0U)
     {
-      AnalyzeAudioFrame(&s_audioDmaBuffer[0], AUDIO_FRAME_SIZE);
+      int32_t frameCopy[AUDIO_FRAME_SIZE];
+      memcpy(frameCopy, &s_audioDmaBuffer[0], sizeof(frameCopy));
+      AnalyzeAudioFrame(frameCopy, AUDIO_FRAME_SIZE);
     }
     if ((readyMask & AUDIO_BUFFER_FULL_FLAG) != 0U)
     {
-      AnalyzeAudioFrame(&s_audioDmaBuffer[AUDIO_FRAME_SIZE], AUDIO_FRAME_SIZE);
+      int32_t frameCopy[AUDIO_FRAME_SIZE];
+      memcpy(frameCopy, &s_audioDmaBuffer[AUDIO_FRAME_SIZE], sizeof(frameCopy));
+      AnalyzeAudioFrame(frameCopy, AUDIO_FRAME_SIZE);
     }
   }
   /* USER CODE END AudioProcessingTask */
@@ -366,11 +367,25 @@ static void DispatchAlarmEvent(AlarmEventSource_t source, uint32_t magnitude)
 
 static void AnalyzeAudioFrame(const int32_t *frame, size_t length)
 {
+  if ((frame == NULL) || (length == 0U))
+  {
+    return;
+  }
+
   float32_t frameEnergy = CalculateFrameEnergy(frame, length);
-  DebugPrint("frameEnergy: %0.15f dB\r\n", frameEnergy);
-  float32_t threshold = ref_rms + s_audioNoiseEstimate;
-  DebugPrint("threshold: %0.15f dB\r\n", threshold);
-  if (frameEnergy > threshold)
+
+  /* Build a dynamic threshold from the running noise estimate */
+  uint32_t noise = s_audioNoiseEstimate;
+  uint32_t margin = AUDIO_DYNAMIC_MARGIN + (noise >> 3); /* small margin increases as noise grows */
+  uint32_t relativeThreshold = noise + margin;
+  uint32_t ratioThreshold = (noise * AUDIO_RELATIVE_FACTOR_NUM) / AUDIO_RELATIVE_FACTOR_DEN;
+  uint32_t dynamicThreshold = (relativeThreshold > ratioThreshold) ? relativeThreshold : ratioThreshold;
+  if (dynamicThreshold < AUDIO_ABSOLUTE_THRESHOLD)
+  {
+    dynamicThreshold = AUDIO_ABSOLUTE_THRESHOLD;
+  }
+
+  if ((uint32_t)frameEnergy > dynamicThreshold)
   {
     TickType_t now = xTaskGetTickCount();
     if ((int32_t)(now - s_lastAudioAlarmTick) >= (int32_t)pdMS_TO_TICKS(AUDIO_RETRIGGER_MS))
@@ -378,6 +393,21 @@ static void AnalyzeAudioFrame(const int32_t *frame, size_t length)
       s_lastAudioAlarmTick = now;
       DispatchAlarmEvent(ALARM_EVENT_AUDIO, (uint32_t)frameEnergy);
     }
+  }
+  else
+  {
+    /* Update noise estimate with an exponential moving average */
+    uint64_t accum = ((uint64_t)noise * ((1UL << AUDIO_NOISE_ALPHA_SHIFT) - 1U)) + (uint32_t)frameEnergy;
+    noise = (uint32_t)(accum >> AUDIO_NOISE_ALPHA_SHIFT);
+    if (noise < AUDIO_NOISE_MIN)
+    {
+      noise = AUDIO_NOISE_MIN;
+    }
+    else if (noise > AUDIO_NOISE_MAX)
+    {
+      noise = AUDIO_NOISE_MAX;
+    }
+    s_audioNoiseEstimate = noise;
   }
 }
 
@@ -398,9 +428,20 @@ static void InitAlarmWaveform(void)
 
 static float32_t CalculateFrameEnergy(const int32_t *frame, size_t length)
 {
-  float32_t rms;
-  arm_rms_f32(frame, length, &rms);
-  return rms;
+  if (length == 0U)
+  {
+    return 0.0f;
+  }
+
+  float64_t acc = 0.0;
+  for (size_t i = 0; i < length; ++i)
+  {
+    float32_t sample = (float32_t)(frame[i] >> AUDIO_SAMPLE_SHIFT);
+    acc += (float64_t)(sample * sample);
+  }
+
+  acc /= (float64_t)length;
+  return sqrtf((float32_t)acc);
 }
 
 static HAL_StatusTypeDef StartAlarmOutput(void)
@@ -463,10 +504,6 @@ static void DebugPrint(const char *format, ...)
 
 void HAL_DFSDM_FilterRegConvHalfCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filter)
 {
-  if (! done_calibration)
-  {
-    return;
-  }
   if (hdfsdm_filter != &hdfsdm1_filter0)
   {
     return;
@@ -496,20 +533,6 @@ void HAL_DFSDM_FilterRegConvCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filt
 {
   if (hdfsdm_filter != &hdfsdm1_filter0)
   {
-    return;
-  }
-  
-  if (! done_calibration)
-  {
-    done_calibration = 1;
-    float32_t ref_rms_local;
-    arm_rms_f32(&s_baselineBuffer[0], BL_BUFFER_SIZE, &ref_rms_local);
-    ref_rms = ref_rms_local;
-    if (HAL_DFSDM_FilterRegularStop_DMA(&hdfsdm1_filter0) != HAL_OK)
-    {
-      Error_Handler();
-    }
-    DebugPrint("Audio sensor calibration done\r\n");
     return;
   }
 
