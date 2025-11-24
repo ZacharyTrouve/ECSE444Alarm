@@ -57,8 +57,12 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
  ../Core/Inc/dac.h ../Core/Inc/main.h ../Core/Inc/dfsdm.h \
  ../Core/Inc/dma.h ../Core/Inc/i2c.h ../Core/Inc/octospi.h \
  ../Core/Inc/rtc.h ../Core/Inc/tim.h ../Core/Inc/usart.h \
- ../Core/Inc/gpio.h ../Core/Inc/arm_math.h \
- ../Drivers/CMSIS/Include/cmsis_compiler.h
+ ../Core/Inc/gpio.h ../Core/Inc/stm32l4s5i_iot01_accelero.h \
+ ../Core/Inc/stm32l4s5i_iot01.h \
+ /Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/lsm6dsl.h \
+ /Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/../Common/accelero.h \
+ /Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/../Common/gyro.h \
+ ../Core/Inc/arm_math.h ../Drivers/CMSIS/Include/cmsis_compiler.h
 ../Middlewares/Third_Party/FreeRTOS/Source/include/FreeRTOS.h:
 ../Core/Inc/FreeRTOSConfig.h:
 ../Middlewares/Third_Party/FreeRTOS/Source/include/projdefs.h:
@@ -125,5 +129,10 @@ Core/Src/freertos.o: ../Core/Src/freertos.c \
 ../Core/Inc/tim.h:
 ../Core/Inc/usart.h:
 ../Core/Inc/gpio.h:
+../Core/Inc/stm32l4s5i_iot01_accelero.h:
+../Core/Inc/stm32l4s5i_iot01.h:
+/Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/lsm6dsl.h:
+/Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/../Common/accelero.h:
+/Users/tt/STM32CubeIDE/Labs/FinalProject/Drivers/Components/../Components/lsm6dsl/../Common/gyro.h:
 ../Core/Inc/arm_math.h:
 ../Drivers/CMSIS/Include/cmsis_compiler.h:
