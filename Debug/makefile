@@ -70,34 +70,34 @@ $(wildcard ../makefile.init) \
 $(wildcard ../makefile.targets) \
 
 
-BUILD_ARTIFACT_NAME := project_attempt1
+BUILD_ARTIFACT_NAME := project_ble_attempt2
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX :=
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME)$(if $(BUILD_ARTIFACT_EXTENSION),.$(BUILD_ARTIFACT_EXTENSION),)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-project_attempt1.elf \
+project_ble_attempt2.elf \
 
 MAP_FILES += \
-project_attempt1.map \
+project_ble_attempt2.map \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-project_attempt1.list \
+project_ble_attempt2.list \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: project_attempt1.elf secondary-outputs
+main-build: project_ble_attempt2.elf secondary-outputs
 
 # Tool invocations
-project_attempt1.elf project_attempt1.map: $(OBJS) $(USER_OBJS) /Users/zachary/Documents/STM32CubeIDE/workspace_1.19.0/project_attempt1/STM32L4S5VITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "project_attempt1.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/zachary/Documents/STM32CubeIDE/workspace_1.19.0/project_attempt1/STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="project_attempt1.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
+project_ble_attempt2.elf project_ble_attempt2.map: $(OBJS) $(USER_OBJS) /Users/zachary/Documents/STM32CubeIDE/workspace_1.19.0/project_ble_attempt2/STM32L4S5VITX_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "project_ble_attempt2.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"/Users/zachary/Documents/STM32CubeIDE/workspace_1.19.0/project_ble_attempt2/STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="project_ble_attempt2.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -u _printf_float -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -106,14 +106,14 @@ default.size.stdout: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-project_attempt1.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "project_attempt1.list"
+project_ble_attempt2.list: $(EXECUTABLES) makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "project_ble_attempt2.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
 # Other Targets
 clean:
-	-$(RM) default.size.stdout project_attempt1.elf project_attempt1.list project_attempt1.map
+	-$(RM) default.size.stdout project_ble_attempt2.elf project_ble_attempt2.list project_ble_attempt2.map
 	-@echo ' '
 
 secondary-outputs: $(SIZE_OUTPUT) $(OBJDUMP_LIST)

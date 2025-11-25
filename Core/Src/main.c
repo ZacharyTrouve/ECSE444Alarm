@@ -129,7 +129,6 @@ void HAL_GPIO_EXTI_Callback (uint16_t GPIO_Pin) {
 //			HAL_UART_Transmit(&huart1, (uint8_t *) message, length, 100);
 //			currentState = MAGNETO;
 //		}
-
 	}
 }
 /* USER CODE END 0 */
@@ -142,7 +141,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-
+	printf("new code!");
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -595,6 +594,7 @@ void Error_Handler(void)
   /* User can add his own implementation to report the HAL error return state */
   __disable_irq();
   HAL_GPIO_WritePin(LEDred_GPIO_Port, LEDred_Pin, GPIO_PIN_RESET);
+  printf("ERROR ERROR\r\n")''
   while (1)
   {
   }

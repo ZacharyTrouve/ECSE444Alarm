@@ -1,5 +1,5 @@
 
-project_attempt1.elf:     file format elf32-littlearm
+project_ble_attempt2.elf:     file format elf32-littlearm
 
 Sections:
 Idx Name          Size      VMA       LMA       File off  Algn
