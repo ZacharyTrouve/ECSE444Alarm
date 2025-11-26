@@ -54,6 +54,7 @@ typedef struct
 #define ALARM_EVENT_QUEUE_LENGTH            4U
 #define AUDIO_RETRIGGER_MS                  500U
 #define AUDIO_SENSOR_STABILIZATION_MS       1500U
+#define AUDIO_CALIBRATION_FRAMES            20U
 
 
 #define ALARM_WAVEFORM_SAMPLES             10U
@@ -84,7 +85,10 @@ static int32_t s_audioDmaBuffer[AUDIO_DMA_BUFFER_SIZE];
 static uint16_t s_alarmWaveform[ALARM_WAVEFORM_SAMPLES];
 static TickType_t s_lastAudioAlarmTick = 0;
 static volatile bool s_alarmOutputActive = false;
-static volatile bool s_buttonStopRequested = false;
+static uint32_t s_audioThreshold = 20000;
+static bool s_audioCalibrationDone = false;
+static uint64_t s_audioCalibrationAccum = 0;
+static uint32_t s_audioCalibrationCount = 0;
 // static TickType_t s_audioStabilizeUntil = 0;
 
 /* USER CODE END Variables */
@@ -200,6 +204,9 @@ void AudioProcessingTask(void const * argument)
   (void)(argument);
 
   audioProcessingTaskNativeHandle = xTaskGetCurrentTaskHandle();
+  s_audioCalibrationDone = false;
+  s_audioCalibrationAccum = 0;
+  s_audioCalibrationCount = 0;
   memset(s_audioDmaBuffer, 0, sizeof(s_audioDmaBuffer));
 
   if (HAL_DFSDM_FilterRegularStart_DMA(&hdfsdm1_filter0,
@@ -213,11 +220,13 @@ void AudioProcessingTask(void const * argument)
 //  frameEnergy = CalculateFrameEnergy(&s_audioDmaBuffer[AUDIO_FRAME_SIZE], AUDIO_FRAME_SIZE);
 //  memset(s_audioDmaBuffer, 0, sizeof(s_audioDmaBuffer));
   osDelay(AUDIO_SENSOR_STABILIZATION_MS);
+
+  
   DebugPrint("AudioProcessingTask ready\r\n");
 
   for (;;)
   {
-	audio_called_n++;
+	  audio_called_n++;
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
     uint32_t readyMask;
@@ -256,20 +265,6 @@ void AlarmTask(void const * argument)
 
   for (;;)
   {
-    if (s_buttonStopRequested && alarmRunning)
-    {
-      s_buttonStopRequested = false;
-      StopAlarmOutput();
-      alarmRunning = false;
-      DebugPrint("Alarm stopped by button\r\n");
-      continue;
-    }
-    else if (s_buttonStopRequested)
-    {
-      /* Clear stale request even if no alarm is active */
-      s_buttonStopRequested = false;
-    }
-
     DebugPrint("AlarmTask received evt src=%u mag=%lu\r\n", evt.source, evt.magnitude);
     if (xQueueReceive(alarmEventQueue, &evt, portMAX_DELAY) == pdPASS)
     {
@@ -380,15 +375,28 @@ static void AnalyzeAudioFrame(const int32_t *frame, size_t length)
 
   frameEnergy = CalculateFrameEnergy(frame, length);
 
-  uint32_t threshold = 20000;
-
-  if (frameEnergy > threshold)
+  if (!s_audioCalibrationDone)
   {
-	DebugPrint("{\r\n");
-	DebugPrint("	audio_called_n: %ld\r\n", audio_called_n);
-	DebugPrint("	frameEnergy: %ld\r\n", frameEnergy);
-    TickType_t now = xTaskGetTickCount();
+    s_audioCalibrationAccum += frameEnergy;
+    s_audioCalibrationCount++;
+    if (s_audioCalibrationCount >= AUDIO_CALIBRATION_FRAMES)
+    {
+      uint32_t base = (uint32_t)(s_audioCalibrationAccum / s_audioCalibrationCount);
+      s_audioThreshold = base + (base >> 1); /* add 50% headroom */
+      s_audioCalibrationDone = true;
+      DebugPrint("Audio calibration done (base: %lu thr: %lu)\r\n", base, s_audioThreshold);
+    }
+    return;
+  }
+
+  if (frameEnergy > s_audioThreshold)
+  {
+    DebugPrint("{\r\n");
+    // DebugPrint("	audio_called_n: %ld\r\n", audio_called_n);
+    DebugPrint("	frameEnergy: %ld\r\n", frameEnergy);
+    DebugPrint("	audioThreshold: %ld\r\n", s_audioThreshold);
     DebugPrint("}\r\n");
+    TickType_t now = xTaskGetTickCount();
     if ((int32_t)(now - s_lastAudioAlarmTick) >= (int32_t)pdMS_TO_TICKS(AUDIO_RETRIGGER_MS))
     {
       s_lastAudioAlarmTick = now;
@@ -536,15 +544,6 @@ void HAL_DFSDM_FilterRegConvCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filt
     return;
   }
 
-
-//  for (int32_t i=0; i < AUDIO_DMA_BUFFER_SIZE; i++) {
-////	  int32_t sampledAudioData = s_audioDmaBuffer[i];
-//	  DebugPrint("\\\\\\frame[%d]: %d\r\n", i, s_audioDmaBuffer[i]);
-//	  if (i==AUDIO_DMA_BUFFER_SIZE-1) {
-//		  DebugPrint("\r\n");
-//	  }
-//  }
-  
   BaseType_t higherPriorityTaskWoken = pdFALSE;
   s_audioReadyMask |= AUDIO_BUFFER_FULL_FLAG;
   
@@ -567,10 +566,7 @@ void HAL_DFSDM_FilterRegConvCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filt
 
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-  if (GPIO_Pin == PUSH_BUTTON_PIN_Pin)
-  {
-    s_buttonStopRequested = true;
-  }
+  (void)GPIO_Pin;
 }
 
 void vApplicationIdleHook(void)

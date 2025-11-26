@@ -115,7 +115,7 @@ int main(void)
   MX_OCTOSPI1_Init();
   MX_RTC_Init();
   /* USER CODE BEGIN 2 */
-
+  
   /* USER CODE END 2 */
 
   /* Call init function for freertos objects (in cmsis_os2.c) */
