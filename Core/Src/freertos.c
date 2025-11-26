@@ -26,6 +26,7 @@
 #include <stdlib.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <math.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -50,20 +51,9 @@ typedef struct
 #define AUDIO_BUFFER_HALF_FLAG              (1UL << 0)
 #define AUDIO_BUFFER_FULL_FLAG              (1UL << 1)
 #define AUDIO_SAMPLE_SHIFT                  8U
-#define AUDIO_DYNAMIC_MARGIN                200U
-#define AUDIO_ABSOLUTE_THRESHOLD            900U
-#define AUDIO_NOISE_ALPHA_SHIFT             4U
-#define AUDIO_RELATIVE_FACTOR_NUM           5U
-#define AUDIO_RELATIVE_FACTOR_DEN           4U  /* 1.25x */
-#define AUDIO_NOISE_MIN                     10000000U
-#define AUDIO_NOISE_MAX                     100000000U
-#define AUDIO_SENSOR_STABILIZATION_MS       500U
-#define AUDIO_ACTIVE_HOLD_MS                2500U
-#define ALARM_ACTIVE_HOLD_MS                5000U
 #define ALARM_EVENT_QUEUE_LENGTH            4U
-#define ALARM_DECAY_POLL_MS                 100U
-#define ALARM_SUSTAIN_AFTER_EVENT_MS        8000U
 #define AUDIO_RETRIGGER_MS                  500U
+#define AUDIO_SENSOR_STABILIZATION_MS       1500U
 
 
 #define ALARM_WAVEFORM_SAMPLES             10U
@@ -93,8 +83,10 @@ static volatile uint32_t s_audioReadyMask = 0U;
 static int32_t s_audioDmaBuffer[AUDIO_DMA_BUFFER_SIZE];
 static uint16_t s_alarmWaveform[ALARM_WAVEFORM_SAMPLES];
 static TickType_t s_lastAudioAlarmTick = 0;
+static volatile bool s_alarmOutputActive = false;
+static volatile bool s_buttonStopRequested = false;
+// static TickType_t s_audioStabilizeUntil = 0;
 
-//static uint32_t s_audioNoiseEstimate = 25000U;
 /* USER CODE END Variables */
 osThreadId audioProcessingHandle;
 osThreadId alarmTaskHandle;
@@ -102,7 +94,6 @@ osThreadId motionTaskHandle;
 
 /* Private function prototypes -----------------------------------------------*/
 /* USER CODE BEGIN FunctionPrototypes */
-static void InitAudioBuffer(void);
 static void DispatchAlarmEvent(AlarmEventSource_t source, uint32_t magnitude);
 static void AnalyzeAudioFrame(const int32_t *frame, size_t length);
 static uint32_t CalculateFrameEnergy(const int32_t *frame, size_t length);
@@ -110,9 +101,11 @@ static void InitAlarmWaveform(void);
 static HAL_StatusTypeDef StartAlarmOutput(void);
 static void StopAlarmOutput(void);
 static void DebugPrint(const char *format, ...);
+void vApplicationIdleHook(void);
 
 
 static uint32_t frameEnergy = 0;
+static size_t audio_called_n = 0;
 
 
 void vApplicationStackOverflowHook(TaskHandle_t xTask, char *pcTaskName)
@@ -203,6 +196,7 @@ void AudioProcessingTask(void const * argument)
 {
   /* USER CODE BEGIN AudioProcessingTask */
   DebugPrint("AudioProcessingTask begins\r\n");
+  audio_called_n ++;
   (void)(argument);
 
   audioProcessingTaskNativeHandle = xTaskGetCurrentTaskHandle();
@@ -214,11 +208,16 @@ void AudioProcessingTask(void const * argument)
   {
     Error_Handler();
   }
+  // s_audioStabilizeUntil = xTaskGetTickCount() + pdMS_TO_TICKS(AUDIO_SENSOR_STABILIZATION_MS);
+//  frameEnergy = CalculateFrameEnergy(&s_audioDmaBuffer[0], AUDIO_FRAME_SIZE);
+//  frameEnergy = CalculateFrameEnergy(&s_audioDmaBuffer[AUDIO_FRAME_SIZE], AUDIO_FRAME_SIZE);
 //  memset(s_audioDmaBuffer, 0, sizeof(s_audioDmaBuffer));
+  osDelay(AUDIO_SENSOR_STABILIZATION_MS);
   DebugPrint("AudioProcessingTask ready\r\n");
 
   for (;;)
   {
+	audio_called_n++;
     ulTaskNotifyTake(pdTRUE, portMAX_DELAY);
 
     uint32_t readyMask;
@@ -252,17 +251,28 @@ void AlarmTask(void const * argument)
   (void)(argument);
 
   AlarmEvent_t evt;
-  TickType_t sustainUntil = 0;
   bool alarmRunning = false;
   DebugPrint("=========AlarmTask started========\r\n");
 
   for (;;)
   {
-	 osDelay(100);
+    if (s_buttonStopRequested && alarmRunning)
+    {
+      s_buttonStopRequested = false;
+      StopAlarmOutput();
+      alarmRunning = false;
+      DebugPrint("Alarm stopped by button\r\n");
+      continue;
+    }
+    else if (s_buttonStopRequested)
+    {
+      /* Clear stale request even if no alarm is active */
+      s_buttonStopRequested = false;
+    }
+
+    DebugPrint("AlarmTask received evt src=%u mag=%lu\r\n", evt.source, evt.magnitude);
     if (xQueueReceive(alarmEventQueue, &evt, portMAX_DELAY) == pdPASS)
     {
-      sustainUntil = xTaskGetTickCount() + pdMS_TO_TICKS(ALARM_SUSTAIN_AFTER_EVENT_MS);
-      DebugPrint("AlarmTask received evt src=%u mag=%lu\r\n", evt.source, evt.magnitude);
 
       if (!alarmRunning)
       {
@@ -276,16 +286,6 @@ void AlarmTask(void const * argument)
         {
           DebugPrint("Alarm start failed (%ld)\r\n", (long)startStatus);
         }
-      }
-    }
-    else if (alarmRunning)
-    {
-      TickType_t now = xTaskGetTickCount();
-      if ((int32_t)(now - sustainUntil) >= 0)
-      {
-        StopAlarmOutput();
-        alarmRunning = false;
-        DebugPrint("Alarm stopped\r\n");
       }
     }
   }
@@ -344,12 +344,6 @@ void MotionTask(void const * argument)
 
 /* Private application code --------------------------------------------------*/
 /* USER CODE BEGIN Application */
-static void InitAudioBuffer() {
-	for (size_t i=0; i < AUDIO_DMA_BUFFER_SIZE; i++)
-	{
-		s_audioDmaBuffer[i] = 0;
-	}
-}
 
 static void DispatchAlarmEvent(AlarmEventSource_t source, uint32_t magnitude)
 {
@@ -368,7 +362,7 @@ static void DispatchAlarmEvent(AlarmEventSource_t source, uint32_t magnitude)
   {
     DebugPrint("Alarm queue full (src=%u mag=%lu)\r\n", source, magnitude);
   }
-  DebugPrint("Dispatch Alarm!!!\r\n");
+//  DebugPrint("Dispatch Alarm!!!\r\n");
 }
 
 static void AnalyzeAudioFrame(const int32_t *frame, size_t length)
@@ -378,29 +372,32 @@ static void AnalyzeAudioFrame(const int32_t *frame, size_t length)
     return;
   }
 
+  // if ((int32_t)(xTaskGetTickCount() - s_audioStabilizeUntil) < 0)
+  // {
+  //   /* Discard frames during DFSDM stabilization window */
+  //   return;
+  // }
+
   frameEnergy = CalculateFrameEnergy(frame, length);
 
-//  uint32_t noise = s_audioNoiseEstimate;
-//  uint32_t relativeThreshold = noise + margin;
-//  uint32_t ratioThreshold = (noise * AUDIO_RELATIVE_FACTOR_NUM) / AUDIO_RELATIVE_FACTOR_DEN;
-//  uint32_t dynamicThreshold = (relativeThreshold > ratioThreshold) ? relativeThreshold : ratioThreshold;
-  uint32_t threshold = 30000;
-//  if (dynamicThreshold < AUDIO_ABSOLUTE_THRESHOLD)
-//  {
-//    dynamicThreshold = AUDIO_ABSOLUTE_THRESHOLD;
-//  }
+  uint32_t threshold = 20000;
 
-  if ((uint32_t)frameEnergy > threshold)
+  if (frameEnergy > threshold)
   {
+	DebugPrint("{\r\n");
+	DebugPrint("	audio_called_n: %ld\r\n", audio_called_n);
+	DebugPrint("	frameEnergy: %ld\r\n", frameEnergy);
     TickType_t now = xTaskGetTickCount();
+    DebugPrint("}\r\n");
     if ((int32_t)(now - s_lastAudioAlarmTick) >= (int32_t)pdMS_TO_TICKS(AUDIO_RETRIGGER_MS))
     {
       s_lastAudioAlarmTick = now;
       DispatchAlarmEvent(ALARM_EVENT_AUDIO, (uint32_t)frameEnergy);
     }
-  } else
+  }
+  else
   {
-	  DebugPrint("Quiet...frame energy is: %u\r\n", frameEnergy);
+//    DebugPrint("Quiet...frame energy is: %u\r\n", (unsigned int)frameEnergy);
   }
 }
 
@@ -421,18 +418,28 @@ static uint32_t CalculateFrameEnergy(const int32_t *frame, size_t length)
 {
   if (length == 0U)
   {
-    return 0.0f;
+    return 0;
   }
 
-  int32_t acc = 0.0;
+//  if (audio_called_n == 64) {
+//	  ;
+//  }
+
+  uint32_t acc = 0;
   for (size_t i = 0; i < length; ++i)
   {
-	  uint32_t sample = (uint32_t)(frame[i] >> AUDIO_SAMPLE_SHIFT);
-    acc += (int32_t)(sample);
+      int32_t raw = frame[i] >> AUDIO_SAMPLE_SHIFT; // still signed
+      if (raw > 10000000) {
+    	  DebugPrint("abnormal sound, raw = %ld\r\n", raw);
+
+      }
+      if (raw < 0) raw = -raw;   // take magnitude
+
+      acc += (uint32_t)raw;      // safe: now always positive
   }
 
-  acc /= (int32_t)length;
-  return (uint32_t)acc;
+  acc /= (uint32_t)length;
+  return acc;
 }
 
 static HAL_StatusTypeDef StartAlarmOutput(void)
@@ -456,6 +463,7 @@ static HAL_StatusTypeDef StartAlarmOutput(void)
 
   HAL_GPIO_WritePin(Error_LED_GPIO_Port, Error_LED_Pin, GPIO_PIN_RESET);
   HAL_GPIO_WritePin(green_LED_GPIO_Port, green_LED_Pin, GPIO_PIN_RESET);
+  s_alarmOutputActive = true;
   return HAL_OK;
 }
 
@@ -465,6 +473,7 @@ static void StopAlarmOutput(void)
   HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
   HAL_GPIO_WritePin(Error_LED_GPIO_Port, Error_LED_Pin, GPIO_PIN_SET);
   HAL_GPIO_WritePin(green_LED_GPIO_Port, green_LED_Pin, GPIO_PIN_SET);
+  s_alarmOutputActive = false;
 }
 
 static void DebugPrint(const char *format, ...)
@@ -554,5 +563,26 @@ void HAL_DFSDM_FilterRegConvCpltCallback(DFSDM_Filter_HandleTypeDef *hdfsdm_filt
   {
     DebugPrint("DFSDM full callback w/o task handle\r\n");
   }
+}
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+  if (GPIO_Pin == PUSH_BUTTON_PIN_Pin)
+  {
+    s_buttonStopRequested = true;
+  }
+}
+
+void vApplicationIdleHook(void)
+{
+  /* Enter SLEEP when alarm output is idle; DFSDM/DMA and accel IRQs will wake us */
+  if (s_alarmOutputActive)
+  {
+    return;
+  }
+
+  HAL_SuspendTick();
+  HAL_PWR_EnterSLEEPMode(PWR_MAINREGULATOR_ON, PWR_SLEEPENTRY_WFI);
+  HAL_ResumeTick();
 }
 /* USER CODE END Application */
